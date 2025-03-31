@@ -22,9 +22,19 @@ async function fetchData(query = '') {
   }
 }
 
-// Render board columns and tasks
+// Render board columns and tasks, and add an "Add Task" button in each column
 function renderBoard() {
   board.innerHTML = '';
+
+  const addColumnBtn = document.createElement('button');
+  addColumnBtn.textContent = 'Add Column';
+  addColumnBtn.addEventListener('click', () => {
+    const columnTitle = prompt("Enter column title:");
+    if (columnTitle) {
+      createColumn(columnTitle);
+    }
+  });
+  board.appendChild(addColumnBtn);
 
   columnsData.forEach(column => {
     // Create column container
@@ -32,7 +42,7 @@ function renderBoard() {
     columnEl.className = 'column';
     columnEl.dataset.id = column.id;
     
-    // Column header with title (customization options can be added here)
+    // Column header with title
     const header = document.createElement('div');
     header.className = 'column-header';
     header.innerHTML = `<h3>${column.title}</h3>`;
@@ -67,6 +77,15 @@ function renderBoard() {
     tasksContainer.addEventListener('drop', handleDrop);
     
     columnEl.appendChild(tasksContainer);
+    
+    // Create and add the "Add Task" button for this column
+    const addTaskButton = document.createElement('button');
+    addTaskButton.textContent = 'Add Task';
+    addTaskButton.addEventListener('click', () => {
+      addTask(column.id);
+    });
+    columnEl.appendChild(addTaskButton);
+    
     board.appendChild(columnEl);
   });
 }
@@ -113,10 +132,32 @@ function handleDrop(e) {
   updateTask(taskId, newColumnId, newPosition);
 }
 
+
+// Function to call the API to create a column
+async function createColumn(title) {
+  // Decide what position to give the new column
+  // For example, the next position is columnsData.length
+  const position = columnsData.length;
+
+  try {
+    const res = await fetch('/api/columns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, position })
+    });
+    const newColumn = await res.json();
+
+    // Re-fetch data to see the new column
+    fetchData(searchInput.value);
+  } catch (error) {
+    console.error('Error creating column:', error);
+  }
+}
+
+
 // Function to update task on the server via API
 async function updateTask(taskId, newColumnId, newPosition) {
   // For simplicity, we assume title/description remain unchanged.
-  // In a real app, you might fetch full task details first.
   const task = tasksData.find(t => t.id == taskId);
   const updatedTask = {
     title: task.title,
@@ -136,6 +177,28 @@ async function updateTask(taskId, newColumnId, newPosition) {
   } catch (error) {
     console.error('Error updating task:', error);
   }
+}
+
+// Function to add a new task via the API
+function addTask(columnId) {
+  const title = prompt("Enter task title:");
+  if (!title) return;
+  
+  // Determine new position by counting tasks in the column
+  const tasksInColumn = tasksData.filter(task => task.column_id == columnId);
+  const position = tasksInColumn.length;
+  
+  fetch('/api/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description: '', column_id: columnId, position })
+  })
+  .then(res => res.json())
+  .then(data => {
+    // Refresh board after adding the new task
+    fetchData(searchInput.value);
+  })
+  .catch(err => console.error('Error creating task:', err));
 }
 
 // Search functionality: filter tasks as user types
