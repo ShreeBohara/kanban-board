@@ -22,8 +22,10 @@ async function fetchData(query = '') {
   }
 }
 
-// Render board columns and tasks, and add an "Add Task" button in each column
+
+
 function renderBoard() {
+  
   board.innerHTML = '';
 
   const addColumnBtn = document.createElement('button');
